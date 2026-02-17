@@ -1,17 +1,65 @@
+/* --- Global & Font Styles --- */
+* {
+  font-family: "Poppins", sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: "Poppins", sans-serif;
+  background-color: #f4f1ea; /* Abu-abu hangat/krem muda */
+  color: #3e2723; /* Cokelat sangat tua untuk teks */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: "Poppins", sans-serif !important;
+}
+
 /* --- Global & Utility Styles --- */
 .card-menu {
   transition: 0.2s;
   cursor: pointer;
+  border: 1px solid #e0d8cc !important;
 }
 
 .card-menu:hover {
   transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(75, 56, 50, 0.1);
 }
 
 .card-menu:active {
-  background-color: #e2e6ea !important;
+  background-color: #f0ebe3 !important;
   transform: translateY(0);
   transition: 0.1s;
+}
+
+/* Mengubah Warna Tombol Primary Bootstrap ke Cokelat */
+.btn-primary {
+  background-color: #4b3832 !important; /* Espresso Brown */
+  border-color: #4b3832 !important;
+}
+
+.btn-primary:hover {
+  background-color: #3c2a21 !important;
+}
+
+.btn-outline-primary {
+  color: #4b3832 !important;
+  border-color: #4b3832 !important;
+}
+
+.btn-outline-primary:hover {
+  background-color: #4b3832 !important;
+  color: white !important;
+}
+
+/* Mengubah Warna Teks Primary ke Cokelat */
+.text-primary {
+  color: #4b3832 !important;
 }
 
 .sortable {
@@ -19,7 +67,7 @@
 }
 
 .sortable:hover {
-  background-color: #f8f9fa;
+  background-color: #fdfaf5;
 }
 
 /* --- Search & Date Input Styles --- */
@@ -42,12 +90,12 @@
 }
 
 .date-input-container input[type="date"] {
-  padding-right: 65px; /* Beri ruang lebar untuk X dan ikon kalender */
+  padding-right: 65px;
 }
 
 .btn-reset-date {
   position: absolute;
-  right: 35px; /* Supaya tidak menumpuk dengan ikon kalender */
+  right: 35px;
   top: 50%;
   transform: translateY(-50%);
   border: none;
@@ -60,7 +108,7 @@
 
 .btn-reset-search:hover,
 .btn-reset-date:hover {
-  color: #dc3545;
+  color: #a0522d; /* Sienna Brown */
 }
 
 /* --- Responsive Styles (Mobile) --- */
@@ -69,6 +117,7 @@
     flex-direction: column-reverse !important;
     padding: 10px !important;
     gap: 12px;
+    background: #ffffff;
   }
   .nav-links {
     width: 100%;
@@ -86,6 +135,7 @@
     text-align: center;
     border-top: 1px solid #eee;
     padding-top: 8px;
+    font-weight: 700;
   }
   .sticky-top-mobile {
     position: sticky;
@@ -104,6 +154,98 @@
     width: 80mm;
     margin: 0 auto;
     color: black;
-    font-family: monospace;
+    font-family: "Poppins", sans-serif;
   }
+}
+
+/* --- Tambahan untuk Modal Modern & Notifikasi --- */
+
+.toast-container {
+  transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  opacity: 0;
+  transform: translate(-50%, -20px);
+  pointer-events: none;
+}
+
+.toast-container.show {
+  opacity: 1;
+  transform: translate(-50%, 20px);
+  pointer-events: auto;
+}
+
+.custom-toast {
+  padding: 12px 25px;
+  color: white;
+  border-radius: 50px;
+  box-shadow: 0 10px 25px rgba(75, 56, 50, 0.2);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* Modal Overlay dengan efek Blur */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(44, 24, 16, 0.4); /* Overlay cokelat transparan */
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.modal-card {
+  background: white;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 40px rgba(75, 56, 50, 0.15);
+  overflow: hidden;
+  animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.nota-card {
+  max-width: 350px;
+}
+
+/* Animasi Muncul Modal */
+@keyframes modalPop {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Login Card Styling */
+.login-card {
+  border: none !important;
+  background: #ffffff;
+  box-shadow: 0 15px 35px rgba(75, 56, 50, 0.1) !important;
+}
+
+/* Indikator Warna Notifikasi - Menggunakan tone yang lebih earthy */
+.bg-success {
+  background: #556b2f !important; /* Dark Olive Green */
+}
+.bg-danger {
+  background: #8b4513 !important; /* Saddle Brown */
+}
+.bg-warning {
+  background: #cd853f !important; /* Peru Brown */
+}
+
+/* Menyesuaikan area nota agar pas di modal */
+#area-nota {
+  background: white;
+  border-radius: 10px;
 }

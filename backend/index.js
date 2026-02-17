@@ -1,12 +1,40 @@
 const express = require("express");
 const mysql = require("mysql2");
 const cors = require("cors");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// --- KONFIGURASI MULTER (UNTUK UPLOAD GAMBAR) ---
+// Memastikan folder 'uploads' ada, jika tidak ada maka dibuat otomatis
+const dir = "./uploads";
+if (!fs.existsSync(dir)) {
+  fs.mkdirSync(dir);
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    // Nama file unik: timestamp + ekstensi asli
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 2000000 }, // Batas 2MB
+});
+
+// Menyediakan folder uploads sebagai statis agar bisa diakses lewat URL
+app.use("/uploads", express.static("uploads"));
 
 // Konfigurasi Koneksi Database
 const db = mysql.createConnection({
@@ -26,48 +54,54 @@ db.connect((err) => {
 
 // --- ENDPOINT PROFIL (Toko) ---
 
-// 1. Ambil Profil (PENTING: Agar judul tidak "Loading...")
 app.get("/api/profil", (req, res) => {
   const query = "SELECT * FROM profil WHERE id = 1";
   db.query(query, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(results[0] || { nama_shop: "Nama Belum Set" });
+    res.json(
+      results[0] || {
+        nama_shop: "Nama Belum Set",
+        owner: "-",
+        alamat: "-",
+      },
+    );
   });
 });
 
-// 2. Update Nama Shop
 app.put("/api/profil", (req, res) => {
-  const { nama_shop } = req.body;
-  const query = "UPDATE profil SET nama_shop = ? WHERE id = 1";
-  db.query(query, [nama_shop], (err, result) => {
+  const { nama_shop, owner, alamat } = req.body;
+  const query =
+    "UPDATE profil SET nama_shop = ?, owner = ?, alamat = ? WHERE id = 1";
+
+  db.query(query, [nama_shop, owner, alamat], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: "Nama Coffee Shop berhasil diubah!" });
+    res.json({ message: "Profil Coffee Shop berhasil diperbarui!" });
   });
 });
 
 // --- ENDPOINT MENU ---
 
-// 1. Ambil Semua Menu (Untuk tampil di tabel sebelah kanan)
 app.get("/api/menu", (req, res) => {
-  const query = "SELECT * FROM menu ORDER BY id DESC"; // DESC agar menu terbaru di atas
+  const query = "SELECT * FROM menu ORDER BY id DESC";
   db.query(query, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
 });
 
-// 2. Tambah Menu Baru
-app.post("/api/menu", (req, res) => {
+// UPDATE: Ditambahkan upload.single('gambar')
+app.post("/api/menu", upload.single("gambar"), (req, res) => {
   const { nama_item, kategori, harga, stok } = req.body;
+  const gambar = req.file ? req.file.filename : null; // Simpan nama file jika ada
+
   const query =
-    "INSERT INTO menu (nama_item, kategori, harga, stok) VALUES (?, ?, ?, ?)";
-  db.query(query, [nama_item, kategori, harga, stok], (err, result) => {
+    "INSERT INTO menu (nama_item, kategori, harga, stok, gambar) VALUES (?, ?, ?, ?, ?)";
+  db.query(query, [nama_item, kategori, harga, stok, gambar], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message: "Menu berhasil ditambahkan!", id: result.insertId });
   });
 });
 
-// 3. Hapus Menu
 app.delete("/api/menu/:id", (req, res) => {
   const { id } = req.params;
   const query = "DELETE FROM menu WHERE id = ?";
@@ -77,70 +111,66 @@ app.delete("/api/menu/:id", (req, res) => {
   });
 });
 
-// 4. Edit Menu
-app.put("/api/menu/:id", (req, res) => {
+// UPDATE: Mendukung update gambar pada menu
+app.put("/api/menu/:id", upload.single("gambar"), (req, res) => {
   const { id } = req.params;
   const { nama_item, kategori, harga, stok } = req.body;
-  const query =
-    "UPDATE menu SET nama_item = ?, kategori = ?, harga = ?, stok = ? WHERE id = ?";
-  db.query(query, [nama_item, kategori, harga, stok, id], (err, result) => {
+
+  let query;
+  let params;
+
+  if (req.file) {
+    // Jika ada upload gambar baru
+    query =
+      "UPDATE menu SET nama_item = ?, kategori = ?, harga = ?, stok = ?, gambar = ? WHERE id = ?";
+    params = [nama_item, kategori, harga, stok, req.file.filename, id];
+  } else {
+    // Jika tidak ada gambar baru yang diupload
+    query =
+      "UPDATE menu SET nama_item = ?, kategori = ?, harga = ?, stok = ? WHERE id = ?";
+    params = [nama_item, kategori, harga, stok, id];
+  }
+
+  db.query(query, params, (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message: "Menu berhasil diperbarui!" });
   });
 });
 
-// --- ENDPOINT TRANSAKSI (PROSES PEMBAYARAN) ---
+// --- ENDPOINT TRANSAKSI ---
+
 app.post("/api/transaksi", (req, res) => {
   const { total_bayar, metode_pembayaran, items } = req.body;
-
-  // 1. Simpan ke tabel transaksi (Induk)
   const sqlTransaksi =
     "INSERT INTO transaksi (total_bayar, metode_pembayaran) VALUES (?, ?)";
 
   db.query(sqlTransaksi, [total_bayar, metode_pembayaran], (err, result) => {
-    if (err) {
-      return res
-        .status(500)
-        .json({ error: "Gagal menyimpan transaksi utama: " + err.message });
-    }
+    if (err) return res.status(500).json({ error: err.message });
 
-    // INI KUNCINYA: Mengambil ID yang baru saja dibuat di tabel transaksi
     const idBaru = result.insertId;
-
-    // 2. Siapkan data untuk detail_transaksi (Anak)
-    // Kita buat array of array untuk insert sekaligus banyak (bulk insert)
     const valuesDetail = items.map((item) => [
-      idBaru, // Menghubungkan ke ID induk
-      item.id, // ID Menu
-      item.qty, // Jumlah yang dibeli
-      item.harga * item.qty, // Subtotal
+      idBaru,
+      item.id,
+      item.qty,
+      item.harga * item.qty,
     ]);
 
     const sqlDetail =
       "INSERT INTO detail_transaksi (transaksi_id, menu_id, jumlah, subtotal) VALUES ?";
 
     db.query(sqlDetail, [valuesDetail], (err) => {
-      if (err) {
-        return res
-          .status(500)
-          .json({ error: "Gagal menyimpan detail transaksi: " + err.message });
-      }
+      if (err) return res.status(500).json({ error: err.message });
 
-      // 3. LOGIKA POTONG STOK: Kurangi stok setiap menu yang dibeli
       items.forEach((item) => {
         const sqlUpdateStok = "UPDATE menu SET stok = stok - ? WHERE id = ?";
         db.query(sqlUpdateStok, [item.qty, item.id]);
       });
 
-      res.json({
-        message: "Transaksi Berhasil!",
-        transaksi_id: idBaru,
-      });
+      res.json({ message: "Transaksi Berhasil!", transaksi_id: idBaru });
     });
   });
 });
 
-// Ambil data laporan transaksi
 app.get("/api/laporan", (req, res) => {
   const sql = `
     SELECT 
@@ -150,8 +180,8 @@ app.get("/api/laporan", (req, res) => {
       t.metode_pembayaran,
       GROUP_CONCAT(CONCAT(m.nama_item, ' (', dt.jumlah, ')') SEPARATOR ', ') AS rincian
     FROM transaksi t
-    JOIN detail_transaksi dt ON t.id = dt.transaksi_id
-    JOIN menu m ON dt.menu_id = m.id
+    LEFT JOIN detail_transaksi dt ON t.id = dt.transaksi_id
+    LEFT JOIN menu m ON dt.menu_id = m.id
     GROUP BY t.id
     ORDER BY t.tanggal DESC
   `;
@@ -159,6 +189,27 @@ app.get("/api/laporan", (req, res) => {
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
+  });
+});
+
+app.delete("/api/transaksi/:id", (req, res) => {
+  const { id } = req.params;
+  const sqlHapusDetail = "DELETE FROM detail_transaksi WHERE transaksi_id = ?";
+
+  db.query(sqlHapusDetail, [id], (err) => {
+    if (err)
+      return res
+        .status(500)
+        .json({ error: "Gagal hapus detail: " + err.message });
+
+    const sqlHapusTransaksi = "DELETE FROM transaksi WHERE id = ?";
+    db.query(sqlHapusTransaksi, [id], (err, result) => {
+      if (err)
+        return res
+          .status(500)
+          .json({ error: "Gagal hapus transaksi: " + err.message });
+      res.json({ message: "Transaksi berhasil dihapus dari laporan!" });
+    });
   });
 });
 
